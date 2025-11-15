@@ -14,8 +14,13 @@ PAINEL_PASS = "1010"
 # =============================
 # CONFIGURAÇÕES DO TELEGRAM
 # =============================
-TELEGRAM_TOKEN = "8294227580:AAFD77S69k4X4hPTPv7MQYq6YhpM8F0VP00"
+TELEGRAM_TOKEN = os.environ.get("8294227580:AAFD77S69k4X4hPTPv7MQYq6YhpM8F0VP00")
+
+if not TELEGRAM_TOKEN:
+    raise ValueError("TOKEN DO TELEGRAM NÃO ENCONTRADO! Configure 'TELEGRAM_TOKEN' no Render.")
+
 bot = Bot(token=TELEGRAM_TOKEN)
+
 
 GUARNICOES = {
     "UR-324": -5058043663,
@@ -139,11 +144,9 @@ def painel():
         mensagem = request.form.get("mensagem", "").strip()
 
         if not grupos or not mensagem:
-            # nada marcado ou mensagem vazia -> não envia
             enviado = False
         else:
             for g in grupos:
-                # checa se existe no dicionário
                 if g not in GUARNICOES:
                     continue
                 chat_id = GUARNICOES[g]
@@ -152,15 +155,16 @@ def painel():
                     f"👨‍🚒 *Guarnição:* {g}\n"
                     f"📝 *Mensagem:* {mensagem}\n"
                 )
-                # envia para o Telegram (pode lançar exceção se token/chat errado)
                 bot.send_message(chat_id=chat_id, text=texto, parse_mode="Markdown")
+
             enviado = True
 
     return render_template_string(painel_html, guarnicoes=GUARNICOES.keys(), enviado=enviado)
 
 # =============================
-# INICIAR FLASK
+# INICIAR FLASK (RENDER COMPATÍVEL)
 # =============================
 if __name__ == "__main__":
-    print("Painel iniciado: http://127.0.0.1:8080")
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.getenv("PORT", 8080))
+    print(f"Servidor rodando na porta {port}")
+    app.run(host="0.0.0.0", port=port)
