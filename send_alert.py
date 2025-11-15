@@ -1,3 +1,45 @@
+# ===== fallback para imghdr (quando não existe no runtime, ex: Python 3.13 no Render) =====
+import sys
+try:
+    import imghdr
+except Exception:
+    # Implementação mínima de imghdr.what() — detecta jpeg, png, gif
+    def _imghdr_what(h, head=None):
+        # h pode ser um caminho/bytes ou um arquivo; aqui tratamos bytes-like e file-like.
+        data = None
+        if head:  # chamada com head já lido
+            data = head
+        else:
+            try:
+                # se h for file-like
+                pos = h.tell()
+                data = h.read(32)
+                h.seek(pos)
+            except Exception:
+                # se h for bytes/bytearray
+                try:
+                    data = h[:32]
+                except Exception:
+                    data = b''
+
+        if isinstance(data, str):
+            data = data.encode('latin1', 'ignore')
+        if not isinstance(data, (bytes, bytearray)):
+            data = b''
+
+        if data.startswith(b'\xff\xd8\xff'):
+            return 'jpeg'
+        if data.startswith(b'\x89PNG\r\n\x1a\n'):
+            return 'png'
+        if data[:6] in (b'GIF87a', b'GIF89a'):
+            return 'gif'
+        return None
+
+    import types
+    imghdr = types.SimpleNamespace(what=_imghdr_what)
+    sys.modules['imghdr'] = imghdr
+# =======================================================================================
+
 from flask import Flask, render_template_string, request, redirect, session
 from telegram import Bot
 import os
