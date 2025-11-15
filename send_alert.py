@@ -14,7 +14,7 @@ PAINEL_PASS = "1010"
 # =============================
 # CONFIGURAÇÕES DO TELEGRAM
 # =============================
-TELEGRAM_TOKEN = os.environ.get("8294227580:AAFD77S69k4X4hPTPv7MQYq6YhpM8F0VP00")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
 if not TELEGRAM_TOKEN:
     raise ValueError("TOKEN DO TELEGRAM NÃO ENCONTRADO! Configure 'TELEGRAM_TOKEN' no Render.")
