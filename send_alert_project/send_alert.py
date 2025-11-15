@@ -14,8 +14,13 @@ PAINEL_PASS = "1010"
 # =============================
 # CONFIGURAÇÕES DO TELEGRAM
 # =============================
-TELEGRAM_TOKEN = "8294227580:AAFD77S69k4X4hPTPv7MQYq6YhpM8F0VP00"
+TELEGRAM_TOKEN = os.environ.get("8294227580:AAFD77S69k4X4hPTPv7MQYq6YhpM8F0VP00")
+
+if not TELEGRAM_TOKEN:
+    raise ValueError("TOKEN DO TELEGRAM NÃO ENCONTRADO! Configure 'TELEGRAM_TOKEN' no Render.")
+
 bot = Bot(token=TELEGRAM_TOKEN)
+
 
 GUARNICOES = {
     "UR-324": -5058043663,
@@ -163,3 +168,4 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     print(f"Servidor rodando na porta {port}")
     app.run(host="0.0.0.0", port=port)
+
