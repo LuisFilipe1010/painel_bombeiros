@@ -1,68 +1,30 @@
-# ===== fallback para imghdr (quando não existe no runtime, ex: Python 3.13 no Render) =====
-import sys
-try:
-    import imghdr
-except Exception:
-    # Implementação mínima de imghdr.what() — detecta jpeg, png, gif
-    def _imghdr_what(h, head=None):
-        # h pode ser um caminho/bytes ou um arquivo; aqui tratamos bytes-like e file-like.
-        data = None
-        if head:  # chamada com head já lido
-            data = head
-        else:
-            try:
-                # se h for file-like
-                pos = h.tell()
-                data = h.read(32)
-                h.seek(pos)
-            except Exception:
-                # se h for bytes/bytearray
-                try:
-                    data = h[:32]
-                except Exception:
-                    data = b''
-
-        if isinstance(data, str):
-            data = data.encode('latin1', 'ignore')
-        if not isinstance(data, (bytes, bytearray)):
-            data = b''
-
-        if data.startswith(b'\xff\xd8\xff'):
-            return 'jpeg'
-        if data.startswith(b'\x89PNG\r\n\x1a\n'):
-            return 'png'
-        if data[:6] in (b'GIF87a', b'GIF89a'):
-            return 'gif'
-        return None
-
-    import types
-    imghdr = types.SimpleNamespace(what=_imghdr_what)
-    sys.modules['imghdr'] = imghdr
-# =======================================================================================
-
+import os
+import asyncio
 from flask import Flask, render_template_string, request, redirect, session
 from telegram import Bot
-import os
 
 app = Flask(__name__)
-app.secret_key = "MINHA_CHAVE_SECRETA_123"  # Troque para algo mais seguro depois
+app.secret_key = os.getenv("SECRET_KEY", "MINHA_CHAVE_SECRETA_123")
 
 # =============================
 # CONFIGURAÇÕES DO PAINEL
 # =============================
-PAINEL_USER = "filipealves"
-PAINEL_PASS = "1010"
+PAINEL_USER = os.getenv("PAINEL_USER", "filipealves")
+PAINEL_PASS = os.getenv("PAINEL_PASS", "1010")
 
 # =============================
 # CONFIGURAÇÕES DO TELEGRAM
 # =============================
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 if not TELEGRAM_TOKEN:
     raise ValueError("TOKEN DO TELEGRAM NÃO ENCONTRADO! Configure 'TELEGRAM_TOKEN' no Render.")
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
+# Função assíncrona para enviar mensagem
+async def enviar_telegram(chat_id, texto):
+    await bot.send_message(chat_id=chat_id, text=texto, parse_mode="Markdown")
 
 GUARNICOES = {
     "UR-324": -5058043663,
@@ -73,7 +35,7 @@ GUARNICOES = {
 }
 
 # =============================
-# TELA DE LOGIN
+# HTML LOGIN
 # =============================
 login_html = """
 <!DOCTYPE html>
@@ -105,7 +67,7 @@ button { padding:10px 20px; }
 """
 
 # =============================
-# PÁGINA PRINCIPAL (PAINEL)
+# HTML DO PAINEL
 # =============================
 painel_html = """
 <!DOCTYPE html>
@@ -150,7 +112,7 @@ button { padding:10px; margin-top:10px; width:100%; }
 """
 
 # =============================
-# ROTA LOGIN
+# LOGIN
 # =============================
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -164,7 +126,7 @@ def login():
     return render_template_string(login_html, erro=erro)
 
 # =============================
-# ROTA LOGOUT
+# LOGOUT
 # =============================
 @app.route("/logout")
 def logout():
@@ -172,7 +134,7 @@ def logout():
     return redirect("/login")
 
 # =============================
-# PÁGINA PRINCIPAL
+# PAINEL PRINCIPAL
 # =============================
 @app.route("/", methods=["GET", "POST"])
 def painel():
@@ -185,28 +147,29 @@ def painel():
         grupos = request.form.getlist("grupos")
         mensagem = request.form.get("mensagem", "").strip()
 
-        if not grupos or not mensagem:
-            enviado = False
-        else:
+        if grupos and mensagem:
             for g in grupos:
                 if g not in GUARNICOES:
                     continue
                 chat_id = GUARNICOES[g]
+
                 texto = (
                     "🚨 *NOVA OCORRÊNCIA* 🚨\n\n"
                     f"👨‍🚒 *Guarnição:* {g}\n"
                     f"📝 *Mensagem:* {mensagem}\n"
                 )
-                bot.send_message(chat_id=chat_id, text=texto, parse_mode="Markdown")
+
+                # chama função async para enviar mensagem
+                asyncio.run(enviar_telegram(chat_id, texto))
 
             enviado = True
 
     return render_template_string(painel_html, guarnicoes=GUARNICOES.keys(), enviado=enviado)
 
 # =============================
-# INICIAR FLASK (RENDER COMPATÍVEL)
+# EXECUÇÃO NO RENDER
 # =============================
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
-    print(f"Servidor rodando na porta {port}")
+    print(f"Servidor rodando porta {port}")
     app.run(host="0.0.0.0", port=port)
